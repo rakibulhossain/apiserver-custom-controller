@@ -1,0 +1,7 @@
+apiVersion: customcontroller.com/v1
+kind: Custom
+metadata:
+  name: example-custom
+spec:
+  deploymentName: customdeployment
+  replicas: 3
