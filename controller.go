@@ -4,20 +4,20 @@ import (
 	"context"
 	"fmt"
 	customv1 "github.com/Rakibul-Hossain/apiserver-custom-controller/pkg/apis/customcontroller/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	clientset "github.com/Rakibul-Hossain/apiserver-custom-controller/pkg/generated/clientset/versioned"
+	samplescheme "github.com/Rakibul-Hossain/apiserver-custom-controller/pkg/generated/clientset/versioned/scheme"
 	informers "github.com/Rakibul-Hossain/apiserver-custom-controller/pkg/generated/informers/externalversions/customcontroller/v1"
 	listers "github.com/Rakibul-Hossain/apiserver-custom-controller/pkg/generated/listers/customcontroller/v1"
-	samplescheme "github.com/Rakibul-Hossain/apiserver-custom-controller/pkg/generated/clientset/versioned/scheme"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -29,14 +29,14 @@ import (
 const controllerAgentName = "customcontroller"
 
 const (
-	SuccessSynced = "Synced"
-	ErrResourceExists = "ErrResourceExists"
+	SuccessSynced         = "Synced"
+	ErrResourceExists     = "ErrResourceExists"
 	MessageResourceExists = "Resource %q already exists and is not managed by Custom"
 	MessageResourceSynced = "Custom synced successfully"
 )
 
 type Controller struct {
-	kubeclient kubernetes.Interface
+	kubeclient   kubernetes.Interface
 	customclient clientset.Interface
 
 	deploymentsLister appslisters.DeploymentLister
@@ -70,7 +70,7 @@ func NewController(
 		deploymentsSynced: deploymentInformer.Informer().HasSynced,
 		customLister:      customInformer.Lister(),
 		customSynced:      customInformer.Informer().HasSynced,
-		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),"Customs"),
+		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Customs"),
 		recorder:          recorder,
 	}
 
@@ -78,14 +78,14 @@ func NewController(
 
 	customInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.customenqueue,
-		UpdateFunc: func(old, new interface{}){
+		UpdateFunc: func(old, new interface{}) {
 			controller.customenqueue(new)
 		},
 	})
 
 	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.handleobject,
-		UpdateFunc: func(old, new interface{}){
+		UpdateFunc: func(old, new interface{}) {
 			newDepl := new.(*appsv1.Deployment)
 			oldDepl := old.(*appsv1.Deployment)
 			if newDepl.ResourceVersion == oldDepl.ResourceVersion {
@@ -100,7 +100,7 @@ func NewController(
 
 }
 
-func (c *Controller) customenqueue(obj interface{}){
+func (c *Controller) customenqueue(obj interface{}) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -110,7 +110,7 @@ func (c *Controller) customenqueue(obj interface{}){
 	c.workqueue.Add(key)
 }
 
-func (c *Controller) handleobject(obj interface{}){
+func (c *Controller) handleobject(obj interface{}) {
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {
@@ -144,7 +144,7 @@ func (c *Controller) handleobject(obj interface{}){
 
 }
 
-func (c *Controller) Run(workers int, stopCh <- chan struct{}) error {
+func (c *Controller) Run(workers int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
@@ -229,6 +229,7 @@ func (c *Controller) processNextWorkItem() bool {
 }
 
 func (c *Controller) syncHandler(key string) error {
+
 	// Convert the namespace/name string into a distinct namespace and name
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -306,6 +307,7 @@ func (c *Controller) syncHandler(key string) error {
 	return nil
 }
 func (c *Controller) updateCustomStatus(custom *customv1.Custom, deployment *appsv1.Deployment) error {
+	c.customclient.Discovery()
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
